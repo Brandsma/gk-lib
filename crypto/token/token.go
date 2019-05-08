@@ -12,7 +12,7 @@ import (
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
-	"gk-lib/handler"
+	"github.com/Brandsma/gk-lib/handler"
 
 	uuid "github.com/gofrs/uuid"
 )
