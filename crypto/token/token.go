@@ -96,7 +96,7 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 		return handler.AppErrorf(500, err, "Setting the refresh token failed")
 	}
 	q.Set("refreshToken", refresh)
-	q.Set("expire", string(refreshExpireTime))
+	q.Set("expire", strconv.Itoa(refreshExpireTime))
 
 	u.RawQuery = q.Encode()
 	http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
