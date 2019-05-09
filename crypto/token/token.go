@@ -3,8 +3,8 @@ package token
 import (
 	"github.com/dgrijalva/jwt-go"
 
-	"encoding/json"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -16,11 +16,6 @@ import (
 
 	uuid "github.com/gofrs/uuid"
 )
-
-type signinResponse struct {
-	AccessToken  string `json:"accessToken"`
-	RefreshToken string `json:"refreshToken"`
-}
 
 // Claims defines what will be stored in a JWT access token
 type Claims struct {
@@ -80,33 +75,30 @@ func createRefreshClaim(refreshTokenID string, refreshTokenExp time.Time, uID st
 // An access token is base64 URL encoded
 // A refresh token is encoded in a gorilla session
 // After this it redirects to the given redirect url (both relative and absolute)
-func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID string) *handler.AppError {
+func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID string, redirectURL string) *handler.AppError {
 	// Construct a response to a succesful signin
-	var sr signinResponse
+	u, err := url.Parse(redirectURL)
+	if err != nil {
+		return handler.AppErrorf(500, err, "Could not parse redirectURL")
+	}
+	q := u.Query()
 
 	// Create Access Token
 	access, err := createAccessToken(userID, r.Header.Get("User-Agent"))
 	if err != nil {
-		return handler.AppErrorf(206, err, "Setting the access token failed")
+		return handler.AppErrorf(500, err, "Setting the access token failed")
 	}
-	sr.AccessToken = access
+	q.Set("accessToken", access)
 
 	// Create Refresh Token
 	refresh, err := createRefreshToken(w, r, userID, db)
 	if err != nil {
-		return handler.AppErrorf(206, err, "Setting the refresh token failed")
+		return handler.AppErrorf(500, err, "Setting the refresh token failed")
 	}
-	sr.RefreshToken = refresh
+	q.Set("refreshToken", refresh)
 
-	// Marshal signin response
-	srJSON, err := json.Marshal(sr)
-	if err != nil {
-		return handler.AppErrorf(500, err, "Could not marshal signin response")
-	}
-
-	// Respond
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(srJSON)
+	u.RawQuery = q.Encode()
+	http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
 	return nil
 }
 
