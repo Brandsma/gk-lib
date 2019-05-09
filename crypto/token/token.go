@@ -91,11 +91,12 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 	q.Set("accessToken", access)
 
 	// Create Refresh Token
-	refresh, err := createRefreshToken(w, r, userID, db)
+	refresh, refreshExpireTime, err := createRefreshToken(w, r, userID, db)
 	if err != nil {
 		return handler.AppErrorf(500, err, "Setting the refresh token failed")
 	}
 	q.Set("refreshToken", refresh)
+	q.Set("expire", string(refreshExpireTime))
 
 	u.RawQuery = q.Encode()
 	http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
@@ -121,10 +122,10 @@ func createAccessToken(userID string, uAgent string) (string, error) {
 	return tokenString, nil
 }
 
-func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, db *mgo.Session) (string, error) {
+func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, db *mgo.Session) (string, int, error) {
 	refreshExpireTime, err := strconv.Atoi(os.Getenv("REFRESH_EXPIRE_TIME"))
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	refreshTokenExp := time.Now().Add(time.Duration(refreshExpireTime) * time.Second)
 	refreshTokenID := uuid.Must(uuid.NewV4()).String()
@@ -134,7 +135,7 @@ func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, d
 
 	refreshTokenString, err := refreshToken.SignedString([]byte(os.Getenv("REFRESH_SIGNING_SECRET")))
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	// Insert refresh token into database
@@ -148,12 +149,12 @@ func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, d
 	rc := db.DB(os.Getenv("DATABASE_NAME")).C(os.Getenv("REFRESH_COLLECTION"))
 	// Remove any old refresh tokens from the database
 	if err := rc.Remove(bson.M{"userId": userID}); err != nil && err.Error() != "not found" {
-		return "", err
+		return "", 0, err
 	}
 	// Insert new refresh token
 	if err := rc.Insert(&rt); err != nil {
-		return "", err
+		return "", 0, err
 	}
 
-	return refreshTokenString, nil
+	return refreshTokenString, refreshExpireTime, nil
 }
