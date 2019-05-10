@@ -71,35 +71,53 @@ func createRefreshClaim(refreshTokenID string, refreshTokenExp time.Time, uID st
 	}
 }
 
+type signinRequest struct {
+	AccessToken   string `json:"accessToken"`
+	AccessExpire  string `json:"accessExpire"`
+	RefreshToken  string `json:"refreshToken"`
+	RefreshExpire string `json:"refreshExpire"`
+}
+
 // SetToken sets both an access token and refresh token to the cookies
 // An access token is base64 URL encoded
 // A refresh token is encoded in a gorilla session
 // After this it redirects to the given redirect url (both relative and absolute)
 func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID string, redirectURL string) *handler.AppError {
 	// Construct a response to a succesful signin
-	u, err := url.Parse(redirectURL)
-	if err != nil {
-		return handler.AppErrorf(500, err, "Could not parse redirectURL")
-	}
-	q := u.Query()
-
 	// Create Access Token
 	access, err := createAccessToken(userID, r.Header.Get("User-Agent"))
 	if err != nil {
 		return handler.AppErrorf(500, err, "Setting the access token failed")
 	}
-	q.Set("accessToken", access)
 
 	// Create Refresh Token
-	refresh, refreshExpireTime, err := createRefreshToken(w, r, userID, db)
+	refresh, err := createRefreshToken(w, r, userID, db)
 	if err != nil {
 		return handler.AppErrorf(500, err, "Setting the refresh token failed")
 	}
-	q.Set("refreshToken", refresh)
-	q.Set("expire", strconv.Itoa(refreshExpireTime))
 
-	u.RawQuery = q.Encode()
-	http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
+	u, err := url.Parse(redirectURL)
+	if err != nil {
+		return handler.AppErrorf(500, err, "Could not parse redirectURL")
+	}
+
+	// Build URL for google response, otherwise send json struct
+	if redirectURL == "" {
+		q := u.Query()
+		q.Set("accessToken", access)
+		q.Set("refreshToken", refresh)
+		q.Set("refreshExpire", os.Getenv("REFRESH_EXPIRE_TIME"))
+		q.Set("accessExpire", os.Getenv("EXPIRE_TIME"))
+		u.RawQuery = q.Encode()
+		http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
+	} else {
+		var sr signinRequest
+		sr.AccessToken = access
+		sr.RefreshToken = refresh
+		sr.AccessExpire = os.Getenv("EXPIRE_TIME")
+		sr.RefreshExpire = os.Getenv("REFRESH_EXPIRE_TIME")
+	}
+
 	return nil
 }
 
@@ -122,10 +140,10 @@ func createAccessToken(userID string, uAgent string) (string, error) {
 	return tokenString, nil
 }
 
-func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, db *mgo.Session) (string, int, error) {
+func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, db *mgo.Session) (string, error) {
 	refreshExpireTime, err := strconv.Atoi(os.Getenv("REFRESH_EXPIRE_TIME"))
 	if err != nil {
-		return "", 0, err
+		return "", err
 	}
 	refreshTokenExp := time.Now().Add(time.Duration(refreshExpireTime) * time.Second)
 	refreshTokenID := uuid.Must(uuid.NewV4()).String()
@@ -135,7 +153,7 @@ func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, d
 
 	refreshTokenString, err := refreshToken.SignedString([]byte(os.Getenv("REFRESH_SIGNING_SECRET")))
 	if err != nil {
-		return "", 0, err
+		return "", err
 	}
 
 	// Insert refresh token into database
@@ -149,12 +167,12 @@ func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, d
 	rc := db.DB(os.Getenv("DATABASE_NAME")).C(os.Getenv("REFRESH_COLLECTION"))
 	// Remove any old refresh tokens from the database
 	if err := rc.Remove(bson.M{"userId": userID}); err != nil && err.Error() != "not found" {
-		return "", 0, err
+		return "", err
 	}
 	// Insert new refresh token
 	if err := rc.Insert(&rt); err != nil {
-		return "", 0, err
+		return "", err
 	}
 
-	return refreshTokenString, refreshExpireTime, nil
+	return refreshTokenString, nil
 }
