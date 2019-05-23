@@ -118,6 +118,9 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 		sr.RefreshExpire = os.Getenv("REFRESH_EXPIRE_TIME")
 	}
 
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(sr)
+
 	return nil
 }
 
