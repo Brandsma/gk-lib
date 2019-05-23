@@ -3,6 +3,8 @@ package token
 import (
 	"github.com/dgrijalva/jwt-go"
 
+    "encoding/json"
+
 	"net/http"
 	"net/url"
 	"os"
@@ -116,11 +118,9 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 		sr.RefreshToken = refresh
 		sr.AccessExpire = os.Getenv("EXPIRE_TIME")
 		sr.RefreshExpire = os.Getenv("REFRESH_EXPIRE_TIME")
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(sr)
 	}
-
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(sr)
-
 	return nil
 }
 
