@@ -104,7 +104,7 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 	}
 
 	// Build URL for google response, otherwise send json struct
-	if redirectURL == "" {
+    if redirectURL != "" {
 		q := u.Query()
 		q.Set("accessToken", access)
 		q.Set("refreshToken", refresh)
