@@ -39,6 +39,7 @@ type RefreshToken struct {
 // RefreshClaims defines what will be in the JWT refresh token
 type RefreshClaims struct {
 	UserID        string `json:"userId"`
+	UserGroups         []string    `bson:"userGroups"`
 	Version       string `json:"version"`
 	RemoteAddress string `json:"remoteAddress"`
 	UserAgent     string `json:"userAgent"`
@@ -167,6 +168,7 @@ func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, u
 	// Insert refresh token into database
 	rt := &RefreshToken{
 		UserID:             userID,
+		UserGroups:         userGroups,
 		RefreshTokenString: refreshTokenString,
 		Expire:             refreshTokenExp,
 		Valid:              true,
