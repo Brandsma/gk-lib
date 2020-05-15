@@ -1,6 +1,6 @@
 package util
 
-func retry(attempts int, sleep time.Duration, fn func() error) error {
+func retry(attempts int, sleep time.Duration, fn func(*interface{}) error) error {
 	if err := fn(); err != nil {
 		if s, ok := err.(stop); ok {
 			// Return the original error for later checking
