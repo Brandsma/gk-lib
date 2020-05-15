@@ -3,7 +3,7 @@ package token
 import (
 	"github.com/dgrijalva/jwt-go"
 
-    "encoding/json"
+	"encoding/json"
 
 	"net/http"
 	"net/url"
@@ -15,6 +15,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/Brandsma/gk-lib/handler"
+	m "github.com/Brandsma/gk-lib/models"
 
 	uuid "github.com/gofrs/uuid"
 )
@@ -23,6 +24,7 @@ import (
 type Claims struct {
 	ProgramVersion string `json:"programVersion"`
 	UserAgent      string `json:"userAgent"`
+	UserGroups     []string `json:"userGroups"`
 	jwt.StandardClaims
 }
 
@@ -43,12 +45,14 @@ type RefreshClaims struct {
 	jwt.StandardClaims
 }
 
-func createClaim(userID string, expirationTime time.Time, tokenID string, uAgent string) *Claims {
+func createClaim(userID string, userGroups []string, expirationTime time.Time, tokenID string, uAgent string) *Claims {
 	// TODO: Add more checking features
 	return &Claims{
 		ProgramVersion: os.Getenv("APP_VERSION"),
 		UserAgent:      uAgent,
+		UserGroups:     userGroups,
 		StandardClaims: jwt.StandardClaims{
+			Audience:  "user",
 			Subject:   userID,
 			ExpiresAt: expirationTime.Unix(),
 			Issuer:    os.Getenv("CLAIM_ISSUER"),
@@ -84,10 +88,10 @@ type signinRequest struct {
 // An access token is base64 URL encoded
 // A refresh token is encoded in a gorilla session
 // After this it redirects to the given redirect url (both relative and absolute)
-func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID string, redirectURL string) *handler.AppError {
+func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID string, userGroups []string, redirectURL string) *handler.AppError {
 	// Construct a response to a succesful signin
 	// Create Access Token
-	access, err := createAccessToken(userID, r.Header.Get("User-Agent"))
+	access, err := createAccessToken(userID, userGroups, r.Header.Get("User-Agent"))
 	if err != nil {
 		return handler.AppErrorf(500, err, "Setting the access token failed")
 	}
@@ -104,7 +108,7 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 	}
 
 	// Build URL for google response, otherwise send json struct
-    if redirectURL != "" {
+	if redirectURL != "" {
 		q := u.Query()
 		q.Set("accessToken", access)
 		q.Set("refreshToken", refresh)
@@ -118,13 +122,13 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 		sr.RefreshToken = refresh
 		sr.AccessExpire = os.Getenv("EXPIRE_TIME")
 		sr.RefreshExpire = os.Getenv("REFRESH_EXPIRE_TIME")
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(sr)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(sr)
 	}
 	return nil
 }
 
-func createAccessToken(userID string, uAgent string) (string, error) {
+func createAccessToken(userID string, userGroups []string, uAgent string) (string, error) {
 	tokenID := uuid.Must(uuid.NewV4()).String()
 	expireTime, err := strconv.Atoi(os.Getenv("EXPIRE_TIME"))
 	if err != nil {
@@ -132,7 +136,7 @@ func createAccessToken(userID string, uAgent string) (string, error) {
 	}
 	expirationTime := time.Now().Add(time.Duration(expireTime) * time.Second)
 
-	claims := createClaim(userID, expirationTime, tokenID, uAgent)
+	claims := createClaim(userID, userGroups, expirationTime, tokenID, uAgent)
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	tokenString, err := accessToken.SignedString([]byte(os.Getenv("JWT_SIGNING_SECRET")))
