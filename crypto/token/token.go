@@ -15,7 +15,6 @@ import (
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/Brandsma/gk-lib/handler"
-	m "github.com/Brandsma/gk-lib/models"
 
 	uuid "github.com/gofrs/uuid"
 )
