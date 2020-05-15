@@ -30,6 +30,7 @@ type Claims struct {
 // RefreshToken defines what will be stored in the database of the RefreshToken
 type RefreshToken struct {
 	UserID             string    `bson:"userId"`
+	UserGroups         []string    `bson:"userGroups"`
 	RefreshTokenString string    `bson:"refreshTokenString"`
 	Expire             time.Time `bson:"expirationTime"`
 	Valid              bool      `bson:"valid"`
@@ -61,10 +62,11 @@ func createClaim(userID string, userGroups []string, expirationTime time.Time, t
 	}
 }
 
-func createRefreshClaim(refreshTokenID string, refreshTokenExp time.Time, uID string, r *http.Request) *RefreshClaims {
+func createRefreshClaim(refreshTokenID string, refreshTokenExp time.Time, uID string, userGroups []string, r *http.Request) *RefreshClaims {
 	// TODO: Add more checking features
 	return &RefreshClaims{
 		UserID:        uID,
+		UserGroups:    userGroups,
 		Version:       os.Getenv("APP_VERSION"),
 		RemoteAddress: r.RemoteAddr,
 		UserAgent:     r.Header.Get("User-Agent"),
@@ -96,7 +98,7 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 	}
 
 	// Create Refresh Token
-	refresh, err := createRefreshToken(w, r, userID, db)
+	refresh, err := createRefreshToken(w, r, userID, userGroups, db)
 	if err != nil {
 		return handler.AppErrorf(500, err, "Setting the refresh token failed")
 	}
@@ -146,7 +148,7 @@ func createAccessToken(userID string, userGroups []string, uAgent string) (strin
 	return tokenString, nil
 }
 
-func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, db *mgo.Session) (string, error) {
+func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, userGroups []string, db *mgo.Session) (string, error) {
 	refreshExpireTime, err := strconv.Atoi(os.Getenv("REFRESH_EXPIRE_TIME"))
 	if err != nil {
 		return "", err
@@ -154,7 +156,7 @@ func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, d
 	refreshTokenExp := time.Now().Add(time.Duration(refreshExpireTime) * time.Second)
 	refreshTokenID := uuid.Must(uuid.NewV4()).String()
 
-	refreshClaims := createRefreshClaim(refreshTokenID, refreshTokenExp, userID, r)
+	refreshClaims := createRefreshClaim(refreshTokenID, refreshTokenExp, userID, userGroups, r)
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 
 	refreshTokenString, err := refreshToken.SignedString([]byte(os.Getenv("REFRESH_SIGNING_SECRET")))
