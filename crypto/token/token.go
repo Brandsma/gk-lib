@@ -80,6 +80,7 @@ func createRefreshClaim(refreshTokenID string, refreshTokenExp time.Time, uID st
 }
 
 type signinRequest struct {
+	UserID        string `json:"userId"`
 	AccessToken   string `json:"accessToken"`
 	AccessExpire  string `json:"accessExpire"`
 	RefreshToken  string `json:"refreshToken"`
@@ -121,7 +122,7 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 		http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
 	} else {
 		var sr signinRequest
-		sr.userId = userID
+		sr.UserID = userID
 		sr.AccessToken = access
 		sr.RefreshToken = refresh
 		sr.AccessExpire = os.Getenv("EXPIRE_TIME")
