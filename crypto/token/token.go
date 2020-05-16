@@ -112,6 +112,7 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 	// Build URL for google response, otherwise send json struct
 	if redirectURL != "" {
 		q := u.Query()
+		q.Set("userId", userID)
 		q.Set("accessToken", access)
 		q.Set("refreshToken", refresh)
 		q.Set("refreshExpire", os.Getenv("REFRESH_EXPIRE_TIME"))
@@ -120,6 +121,7 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 		http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
 	} else {
 		var sr signinRequest
+		sr.userId = userID
 		sr.AccessToken = access
 		sr.RefreshToken = refresh
 		sr.AccessExpire = os.Getenv("EXPIRE_TIME")
