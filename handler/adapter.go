@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/context"
-	"gopkg.in/mgo.v2"
+	"github.com/globalsign/mgo"
 )
 
 type Adapter func(http.Handler) http.Handler
