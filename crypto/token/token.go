@@ -29,8 +29,9 @@ type Claims struct {
 
 // RefreshToken defines what will be stored in the database of the RefreshToken
 type RefreshToken struct {
+	CreatedAt          time.Time `bson:"createdAt"`
 	UserID             string    `bson:"userId"`
-	UserGroups         []string    `bson:"userGroups"`
+	UserGroups         []string  `bson:"userGroups"`
 	RefreshTokenString string    `bson:"refreshTokenString"`
 	Expire             time.Time `bson:"expirationTime"`
 	Valid              bool      `bson:"valid"`
@@ -170,6 +171,7 @@ func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, u
 
 	// Insert refresh token into database
 	rt := &RefreshToken{
+		CreatedAt:          time.Now(),
 		UserID:             userID,
 		UserGroups:         userGroups,
 		RefreshTokenString: refreshTokenString,
