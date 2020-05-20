@@ -172,7 +172,7 @@ func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, u
 
 	// Insert refresh token into database
 	rt := &RefreshToken{
-		CreatedAt:          time.Now().Unix(),
+		CreatedAt:          time.Now(),
 		UserID:             userID,
 		UserGroups:         userGroups,
 		RefreshTokenString: refreshTokenString,
