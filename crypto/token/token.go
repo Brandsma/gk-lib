@@ -97,10 +97,13 @@ type signinRequest struct {
 func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID string, userGroups []string, redirectURL string) *handler.AppError {
 	// Construct a response to a succesful signin
 	// Create Access Token
+	log.Print("Start of set token")
 	access, err := createAccessToken(userID, userGroups, r.Header.Get("User-Agent"))
 	if err != nil {
 		return handler.AppErrorf(500, err, "Setting the access token failed")
 	}
+
+	log.Print("Creating claims for refresh token")
 
 	// Create Refresh Token
 	refresh, err := createRefreshToken(w, r, userID, userGroups, db)
@@ -108,13 +111,17 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 		return handler.AppErrorf(500, err, "Setting the refresh token failed")
 	}
 
+	log.Print("Parsing redirect url")
 	u, err := url.Parse(redirectURL)
 	if err != nil {
 		return handler.AppErrorf(500, err, "Could not parse redirectURL")
 	}
+	log.Print("Parsed redirect URL: " + u)
 
 	// Build URL for google response, otherwise send json struct
+	log.Print("Almost setting refresh tokens")
 	if redirectURL != "" {
+		log.Print("Creating google tokens")
 		q := u.Query()
 		q.Set("userId", userID)
 		q.Set("accessToken", access)
