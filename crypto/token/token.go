@@ -122,6 +122,7 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 		u.RawQuery = q.Encode()
 		http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
 	} else {
+		log.Print("Creating refresh token")
 		var sr signinRequest
 		sr.UserID = userID
 		sr.AccessToken = access
