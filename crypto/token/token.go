@@ -56,9 +56,9 @@ func createClaim(userID string, userGroups []string, expirationTime time.Time, t
 		StandardClaims: jwt.StandardClaims{
 			Audience:  "user",
 			Subject:   userID,
-			ExpiresAt: expirationTime.Unix(),
+			ExpiresAt: expirationTime.UTC(),
 			Issuer:    os.Getenv("CLAIM_ISSUER"),
-			IssuedAt:  time.Now().Unix(),
+			IssuedAt:  time.Now().UTC(),
 			Id:        tokenID,
 		},
 	}
@@ -75,7 +75,7 @@ func createRefreshClaim(refreshTokenID string, refreshTokenExp time.Time, uID st
 		StandardClaims: jwt.StandardClaims{
 			Id:        refreshTokenID,
 			Issuer:    os.Getenv("CLAIM_ISSUER"),
-			ExpiresAt: refreshTokenExp.Unix(),
+			ExpiresAt: refreshTokenExp.UTC(),
 		},
 	}
 }
@@ -172,7 +172,7 @@ func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, u
 
 	// Insert refresh token into database
 	rt := &RefreshToken{
-		CreatedAt:          time.Now(),
+		CreatedAt:          time.Now().UTC(),
 		UserID:             userID,
 		UserGroups:         userGroups,
 		RefreshTokenString: refreshTokenString,
