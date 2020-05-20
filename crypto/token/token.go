@@ -116,7 +116,7 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 	if err != nil {
 		return handler.AppErrorf(500, err, "Could not parse redirectURL")
 	}
-	log.Print("Parsed redirect URL: " + u)
+	log.Print("Parsed redirect URL")
 
 	// Build URL for google response, otherwise send json struct
 	log.Print("Almost setting refresh tokens")
