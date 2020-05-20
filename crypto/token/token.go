@@ -5,8 +5,6 @@ import (
 
 	"encoding/json"
 
-	"log"
-
 	"net/http"
 	"net/url"
 	"os"
@@ -97,13 +95,11 @@ type signinRequest struct {
 func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID string, userGroups []string, redirectURL string) *handler.AppError {
 	// Construct a response to a succesful signin
 	// Create Access Token
-	log.Print("Start of set token")
 	access, err := createAccessToken(userID, userGroups, r.Header.Get("User-Agent"))
 	if err != nil {
 		return handler.AppErrorf(500, err, "Setting the access token failed")
 	}
 
-	log.Print("Creating claims for refresh token")
 
 	// Create Refresh Token
 	refresh, err := createRefreshToken(w, r, userID, userGroups, db)
@@ -111,17 +107,13 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 		return handler.AppErrorf(500, err, "Setting the refresh token failed")
 	}
 
-	log.Print("Parsing redirect url")
 	u, err := url.Parse(redirectURL)
 	if err != nil {
 		return handler.AppErrorf(500, err, "Could not parse redirectURL")
 	}
-	log.Print("Parsed redirect URL")
 
 	// Build URL for google response, otherwise send json struct
-	log.Print("Almost setting refresh tokens")
 	if redirectURL != "" {
-		log.Print("Creating google tokens")
 		q := u.Query()
 		q.Set("userId", userID)
 		q.Set("accessToken", access)
@@ -131,7 +123,6 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 		u.RawQuery = q.Encode()
 		http.Redirect(w, r, u.String(), http.StatusPermanentRedirect)
 	} else {
-		log.Print("Creating refresh token")
 		var sr signinRequest
 		sr.UserID = userID
 		sr.AccessToken = access
@@ -150,19 +141,15 @@ func createAccessToken(userID string, userGroups []string, uAgent string) (strin
 	if err != nil {
 		return "", err
 	}
-	log.Print("Got this far")
 	expirationTime := time.Now().Add(time.Duration(expireTime) * time.Second)
 
 	claims := createClaim(userID, userGroups, expirationTime, tokenID, uAgent)
-	log.Print("Got this far")
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	log.Print("Got this far")
 
 	tokenString, err := accessToken.SignedString([]byte(os.Getenv("JWT_SIGNING_SECRET")))
 	if err != nil {
 		return "", err
 	}
-	log.Print("Got this far")
 
 	return tokenString, nil
 }
