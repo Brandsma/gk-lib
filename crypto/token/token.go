@@ -150,15 +150,19 @@ func createAccessToken(userID string, userGroups []string, uAgent string) (strin
 	if err != nil {
 		return "", err
 	}
+	log.Print("Got this far")
 	expirationTime := time.Now().Add(time.Duration(expireTime) * time.Second)
 
 	claims := createClaim(userID, userGroups, expirationTime, tokenID, uAgent)
+	log.Print("Got this far")
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	log.Print("Got this far")
 
 	tokenString, err := accessToken.SignedString([]byte(os.Getenv("JWT_SIGNING_SECRET")))
 	if err != nil {
 		return "", err
 	}
+	log.Print("Got this far")
 
 	return tokenString, nil
 }
