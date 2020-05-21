@@ -92,17 +92,17 @@ type signinRequest struct {
 // An access token is base64 URL encoded
 // A refresh token is encoded in a gorilla session
 // After this it redirects to the given redirect url (both relative and absolute)
-func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID string, userGroups []string, redirectURL string) *handler.AppError {
+func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID string, userGroups []string, redirectURL string, JWTAccessSecret string, JWTRefreshSecret string) *handler.AppError {
 	// Construct a response to a succesful signin
 	// Create Access Token
-	access, err := createAccessToken(userID, userGroups, r.Header.Get("User-Agent"))
+	access, err := createAccessToken(userID, userGroups, r.Header.Get("User-Agent"), JWTAccessSecret)
 	if err != nil {
 		return handler.AppErrorf(500, err, "Setting the access token failed")
 	}
 
 
 	// Create Refresh Token
-	refresh, err := createRefreshToken(w, r, userID, userGroups, db)
+	refresh, err := createRefreshToken(w, r, userID, userGroups, db, JWTRefreshSecret)
 	if err != nil {
 		return handler.AppErrorf(500, err, "Setting the refresh token failed")
 	}
@@ -135,7 +135,7 @@ func SetToken(w http.ResponseWriter, r *http.Request, db *mgo.Session, userID st
 	return nil
 }
 
-func createAccessToken(userID string, userGroups []string, uAgent string) (string, error) {
+func createAccessToken(userID string, userGroups []string, uAgent string, JWTAccessSecret string) (string, error) {
 	tokenID := uuid.Must(uuid.NewV4()).String()
 	expireTime, err := strconv.Atoi(os.Getenv("EXPIRE_TIME"))
 	if err != nil {
@@ -146,7 +146,7 @@ func createAccessToken(userID string, userGroups []string, uAgent string) (strin
 	claims := createClaim(userID, userGroups, expirationTime, tokenID, uAgent)
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	tokenString, err := accessToken.SignedString([]byte(os.Getenv("JWT_SIGNING_SECRET")))
+	tokenString, err := accessToken.SignedString([]byte(JWTAccessSecret))
 	if err != nil {
 		return "", err
 	}
@@ -154,7 +154,7 @@ func createAccessToken(userID string, userGroups []string, uAgent string) (strin
 	return tokenString, nil
 }
 
-func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, userGroups []string, db *mgo.Session) (string, error) {
+func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, userGroups []string, db *mgo.Session, JWTRefreshSecret string) (string, error) {
 	refreshExpireTime, err := strconv.Atoi(os.Getenv("REFRESH_EXPIRE_TIME"))
 	if err != nil {
 		return "", err
@@ -165,7 +165,7 @@ func createRefreshToken(w http.ResponseWriter, r *http.Request, userID string, u
 	refreshClaims := createRefreshClaim(refreshTokenID, refreshTokenExp, userID, userGroups, r)
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 
-	refreshTokenString, err := refreshToken.SignedString([]byte(os.Getenv("REFRESH_SIGNING_SECRET")))
+	refreshTokenString, err := refreshToken.SignedString([]byte(JWTRefreshSecret))
 	if err != nil {
 		return "", err
 	}
